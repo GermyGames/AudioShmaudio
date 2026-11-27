@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# Generated audio/visual outputs
+output/
+*.wav
+*.mp4
+pass_*.png
+*_spec.png
+!docs/examples/
+!docs/examples/**
+
+# OS
+.DS_Store
+Thumbs.db

@@ -7,6 +7,7 @@ import librosa
 
 from spectral_foley import (
     compute_diagnostics,
+    measure_pitch,
     save_feedback_spectrogram,
     stitch_progression_video,
 )
@@ -17,6 +18,12 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     audio = audio.T
     out_png = args.out or os.path.splitext(args.wav)[0] + "_spec.png"
     diag = compute_diagnostics(audio, sr, args.wav, out_png)
+    if args.target_hz is not None:
+        mono = audio.mean(axis=1) if audio.ndim == 2 else audio
+        measured_hz, cents_err = measure_pitch(mono, sr, args.target_hz)
+        diag["target_hz"] = args.target_hz
+        diag["measured_hz"] = measured_hz
+        diag["pitch_error_cents"] = cents_err
     save_feedback_spectrogram(
         audio=audio,
         sr=sr,
@@ -80,6 +87,12 @@ def main() -> None:
         "--sr", type=int, default=None, help="Target sample rate (defaults to native)."
     )
     p_analyze.add_argument("--label", help="Optional title label.")
+    p_analyze.add_argument(
+        "--target-hz",
+        type=float,
+        default=None,
+        help="Optional target fundamental in Hz to measure steady-state pitch and error in cents.",
+    )
     p_analyze.set_defaults(func=cmd_analyze)
 
     p_compare = sub.add_parser(

@@ -14,6 +14,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import soundfile as sf
 
+from instruments import (
+    build_cabinet_ir,
+    cabinet_filter,
+    measure_pitch,
+    peaking_biquad,
+    plucked_string,
+    resonant_lowpass,
+    saturate,
+    write_sf2,
+    write_sfz,
+)
 from procedural import FoleyLayer, modal_filter
 from spatial import StereoScene, add_room, distance_filter, pan_mono, soft_limit
 

@@ -7,6 +7,8 @@ from scipy.interpolate import PchipInterpolator
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import butter, iirpeak, lfilter, sosfilt
 
+from instruments import PickupSpec, cabinet_filter, plucked_string, saturate
+
 
 Band = Tuple[float, float]
 Pressure = Sequence[Tuple[float, float]]
@@ -551,6 +553,115 @@ class FoleyLayer:
         self._check_gain(gain)
         self.audio = (
             modal_filter(self.audio, self.sr, modes, dry=dry) * gain
+        ).astype(np.float32)
+
+    def pluck(
+        self,
+        time: float,
+        duration: float,
+        *,
+        pitch: float,
+        t60_low: float = 6.0,
+        t60_hi: float = 1.35,
+        stiffness: float = 5.0e-5,
+        pluck_pos: float = 0.18,
+        pickup_pos: PickupSpec = ((0.24, 0.52), (0.155, 0.48)),
+        pickup_comb_depth: float = 0.76,
+        pulse_ms: float = 0.22,
+        vel_cutoff_hz: Optional[float] = None,
+        pick_lp_hz: float = 5600.0,
+        noise_amount: float = 0.24,
+        wound_ripple: float = 0.0,
+        dual_pol_detune_cents: float = 0.55,
+        bridge_coupling: float = 0.0012,
+        cross_pol_mix: float = 0.22,
+        pitch_drop_cents: float = 10.0,
+        pitch_drop_tau: float = 0.06,
+        flux_asymmetry: float = 0.032,
+        tail_fade: float = 0.35,
+        gain: float = 0.35,
+    ) -> None:
+        """Synthesize a plucked string using dual-polarization stiff waveguides and mix at `time`."""
+        self._check_gain(gain)
+        if gain == 0.0:
+            return
+        sig = plucked_string(
+            duration,
+            self.sr,
+            pitch,
+            t60_low=t60_low,
+            t60_hi=t60_hi,
+            stiffness=stiffness,
+            pluck_pos=pluck_pos,
+            pickup_pos=pickup_pos,
+            pickup_comb_depth=pickup_comb_depth,
+            pulse_ms=pulse_ms,
+            vel_cutoff_hz=vel_cutoff_hz,
+            pick_lp_hz=pick_lp_hz,
+            noise_amount=noise_amount,
+            wound_ripple=wound_ripple,
+            dual_pol_detune_cents=dual_pol_detune_cents,
+            bridge_coupling=bridge_coupling,
+            cross_pol_mix=cross_pol_mix,
+            pitch_drop_cents=pitch_drop_cents,
+            pitch_drop_tau=pitch_drop_tau,
+            flux_asymmetry=flux_asymmetry,
+            attack_time=0.0,
+            tail_fade=tail_fade,
+            rng=self.rng,
+        )
+        self._mix(time, self._fade(self._unit_peak(sig)), gain)
+
+    def saturate(
+        self,
+        *,
+        drive: float = 2.0,
+        bias: float = 0.14,
+        sag: float = 0.0,
+        sag_release: float = 0.12,
+        oversample: int = 4,
+        dc_block_hz: float = 45.0,
+        gain: float = 1.0,
+    ) -> None:
+        """Apply oversampled asymmetric tube-style saturation to this layer in place."""
+        self._check_gain(gain)
+        self.audio = (
+            saturate(
+                self.audio,
+                self.sr,
+                drive=drive,
+                bias=bias,
+                sag=sag,
+                sag_release=sag_release,
+                oversample=oversample,
+                dc_block_hz=dc_block_hz,
+            )
+            * gain
+        ).astype(np.float32)
+
+    def cabinet(
+        self,
+        *,
+        preset: str = "guitar_1x12",
+        lp_hz: Optional[float] = None,
+        hp_hz: Optional[float] = None,
+        micro_reflections: bool = True,
+        dc_block_hz: float = 35.0,
+        gain: float = 1.0,
+    ) -> None:
+        """Filter this entire layer through a physically modeled speaker cabinet IR in place."""
+        self._check_gain(gain)
+        self.audio = (
+            cabinet_filter(
+                self.audio,
+                self.sr,
+                preset=preset,
+                lp_hz=lp_hz,
+                hp_hz=hp_hz,
+                micro_reflections=micro_reflections,
+                dc_block_hz=dc_block_hz,
+            )
+            * gain
         ).astype(np.float32)
 
     def add_waveform(self, time: float, audio: np.ndarray, *, gain: float = 1.0) -> None:

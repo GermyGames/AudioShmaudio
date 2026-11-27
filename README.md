@@ -129,19 +129,22 @@ skills/audio-shmaudio/
 ├── SKILL.md                         # Core agent instructions & synthesis workflow
 ├── references/
 │   ├── acoustic_recipes.md          # Primitive API & material starting recipes
+│   ├── instruments_and_sampling.md  # Physical plucked strings, amps, cabs & DAW SFZ packs
 │   ├── voices_and_scenes.md         # Vocalize formant synthesis & StereoScene mixing
 │   └── critique_checklist.md        # Diagnostic-driven edits for common issues
 └── scripts/
     ├── spectral_foley.py            # SpectralCanvas, spectral brushes, render & diagnostics
     ├── procedural.py                # Direct waveform primitives & modal_filter
+    ├── instruments.py               # Plucked-string waveguides, saturate, cabinet IR & SFZ/SF2/pitch tools
     ├── spatial.py                   # StereoScene, panning, distance absorption, room & limiter
     └── cli.py                       # Inspect, compare, and stitch WAV/PNG passes
 ```
 
-- **Direct waveform primitives** ([`procedural.py`](skills/audio-shmaudio/scripts/procedural.py)): colored impacts with optional pitch-gliding modes (`contact`), pressure-driven micro-events (`granular`), sweeping continuous surface motion (`friction`), physical stick–slip gear/catch rattle (`stick_slip`), stationary modal object body filtering (`resonate` / `modal_filter`), sustained/swept resonators (`tonal`), and sweeping formant calls (`vocalize`).
+- **Direct waveform primitives** ([`procedural.py`](skills/audio-shmaudio/scripts/procedural.py)): colored impacts with optional pitch-gliding modes (`contact`), pressure-driven micro-events (`granular`), sweeping continuous surface motion (`friction`), physical stick–slip gear/catch rattle (`stick_slip`), physical plucked strings (`pluck`), oversampled saturation (`saturate`), speaker cabinets (`cabinet`), stationary modal object body filtering (`resonate` / `modal_filter`), sustained/swept resonators (`tonal`), and sweeping formant calls (`vocalize`).
+- **Physical instruments & sampling** ([`instruments.py`](skills/audio-shmaudio/scripts/instruments.py)): coupled dual-polarization stiff waveguide (`plucked_string`), magnetic pickup resonance (`resonant_lowpass`), 4x oversampled asymmetric tube `saturate`, zero-latency `cabinet_filter` / `build_cabinet_ir`, steady-state `measure_pitch`, and `write_sfz` / `write_sf2` for DAW multisample packs and SoundFont 2.04 `.sf2` banks.
 - **Spatial & room scene tools** ([`spatial.py`](skills/audio-shmaudio/scripts/spatial.py)): `StereoScene`, `pan_mono`, `distance_filter`, `add_room`, and `soft_limit` place independent layers across stereo panning trajectories, distance air absorption, and decorrelated early reflections + diffuse room tails.
 - **Spectral brushes** ([`spectral_foley.py`](skills/audio-shmaudio/scripts/spectral_foley.py)): paint broad noise beds, sweeps, and tonal envelopes; Griffin–Lim reconstruction runs only when spectral paint is non-zero, then mixes cleanly with waveform layers.
-- **Feedback, diagnostics & references**: render mono or stereo WAVs (`PCM_16`, `PCM_24`, `FLOAT`) alongside dual waveform + log-spectrogram PNGs and JSON metrics, guided by the [primitive API and material recipes](skills/audio-shmaudio/references/acoustic_recipes.md), [voices and scenes guide](skills/audio-shmaudio/references/voices_and_scenes.md), and [critique checklist](skills/audio-shmaudio/references/critique_checklist.md).
+- **Feedback, diagnostics & references**: render mono or stereo WAVs (`PCM_16`, `PCM_24`, `FLOAT`) alongside dual waveform + log-spectrogram PNGs and JSON metrics, guided by the [primitive API and material recipes](skills/audio-shmaudio/references/acoustic_recipes.md), [physical instruments and DAW sampling guide](skills/audio-shmaudio/references/instruments_and_sampling.md), [voices and scenes guide](skills/audio-shmaudio/references/voices_and_scenes.md), and [critique checklist](skills/audio-shmaudio/references/critique_checklist.md).
 
 ## Running examples, CLI, and tests directly
 
@@ -154,12 +157,13 @@ python examples/sword_unsheath.py
 python examples/cavern_water_drops.py
 python examples/campfire_night.py
 python examples/sci_fi_airlock.py
+python examples/electric_guitar_samples.py --full
 ```
 
-Inspect an existing WAV at its native sample rate, compare two passes, or stitch a folder of passes with [the CLI](skills/audio-shmaudio/scripts/cli.py):
+Inspect an existing WAV at its native sample rate (optionally checking steady-state pitch accuracy with `--target-hz`), compare two passes, or stitch a folder of passes with [the CLI](skills/audio-shmaudio/scripts/cli.py):
 
 ```bash
-python skills/audio-shmaudio/scripts/cli.py analyze path/to/reference.wav --out ref_spec.png
+python skills/audio-shmaudio/scripts/cli.py analyze path/to/reference.wav --out ref_spec.png --target-hz 82.4069
 python skills/audio-shmaudio/scripts/cli.py compare output/sci_fi_airlock/pass_01.wav output/sci_fi_airlock/sci_fi_airlock.wav
 python skills/audio-shmaudio/scripts/cli.py stitch output/sci_fi_airlock --out progression.mp4
 ```

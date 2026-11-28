@@ -10,7 +10,7 @@ Use [instruments.py](../scripts/instruments.py) (re-exported by [spectral_foley.
 - `canvas.foley.saturate(*, drive=2.0, bias=0.14, sag=0.0, sag_release=0.12, oversample=4, dc_block_hz=45.0, gain=1.0)` (standalone `saturate(...)`) applies alias-free oversampled $C^\infty$ asymmetric tube saturation, inter-stage coupling-cap DC removal, and envelope-following power-amp sag.
 - `canvas.foley.cabinet(*, preset="guitar_1x12", lp_hz=None, hp_hz=None, micro_reflections=True, gain=1.0)` (standalone `cabinet_filter(...)` / `build_cabinet_ir(...)`) convolves with a zero-latency speaker cabinet IR (`"guitar_1x12"`, `"guitar_4x12"`, `"bass_1x15"`, or `"radio"`).
 - `measure_pitch(audio, sr, target_hz, *, start_sec=0.45, end_sec=1.45)` measures steady-state fundamental and cents error after the initial tension pitch-drop settles (also exposed via `cli.py analyze --target-hz ...`).
-- `write_sfz(path, regions, *, attack=0.001, release=0.14, amp_veltrack=45.0)` writes DAW/sampler-ready `.sfz` instruments.
+- `write_sfz(path, regions=None, *, groups=None, attack=0.001, release=0.14, amp_veltrack=45.0, global_opcodes=None)` writes DAW/sampler-ready `.sfz` instruments, including `<group>` keyswitch blocks (`sw_lokey`/`sw_hikey`/`sw_last`) and round-robin `seq_length`/`seq_position` opcodes.
 - `write_sf2(path, presets, *, bank_name="AudioShmaudio", bit_depth=24, sample_root=None)` packs multi-preset SoundFont 2.04 (`.sf2`) banks directly from WAV region lists (full 24-bit via `smpl` + `sm24` or 16-bit via `smpl`).
 
 ```python
@@ -52,5 +52,5 @@ canvas.render_mix(layer.audio, "e3_edge.wav", "e3_edge_spec.png", "E3 Edge", sub
 ## Building DAW-ready multisample packs
 
 1. **Multisample grid & format.** Export `44.1 kHz` / `PCM_24` mono WAVs spaced every minor third (3 semitones across 3 octaves = 13 roots) so samplers pitch-shift at most ±1 semitone. Keep onset tight (`~4 ms` pre-attack room) for crisp grid alignment and fade tails cleanly (`tail_rms_db < -60 dB`).
-2. **Velocity staging & SFZ / SF2 mapping.** Separate dynamic layers in both timbre and headroom (e.g., `v1` at `-4.2 dB` peak, `v2` at `-1.2 dB` peak, `pm` at `-2.0 dB` peak) and map them with `write_sfz(..., release=0.14, amp_veltrack=45)` or bundle multiple articulations into one SoundFont bank with `write_sf2(..., bit_depth=24)`.
+2. **Velocity staging & SFZ / SF2 mapping.** Separate dynamic layers in both timbre and headroom (e.g., `v1` at `-4.2 dB` peak, `v2` at `-1.2 dB` peak, `pm` at `-2.0 dB` peak) and map them with `write_sfz(..., release=0.14, amp_veltrack=45)` (optionally adding `seq_length`/`seq_position` round-robin variations and `groups` keyswitches) or bundle multiple articulations into one SoundFont bank with `write_sf2(..., bit_depth=24)`.
 3. **Verify across registers.** Check every exported WAV with `measure_pitch` (`|pitch_error_cents| < 2.0`), verify `above_7000_hz < 3%` for cab-filtered electric tones, inspect spectrograms and audio directly across low, mid, and high roots, and assemble a short stereo musical demo built *strictly* from the exported WAVs to verify real-world playability.

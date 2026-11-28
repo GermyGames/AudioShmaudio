@@ -875,3 +875,72 @@ def test_write_sf2_structure_and_fluidsynth_playback(tmp_path):
     rms_lo = float(np.sqrt(np.mean(ren24_p0_lo[round(0.35 * sr) : round(1.20 * sr)] ** 2)))
     assert rms_hi * 0.15 < rms_lo < rms_hi * 0.75
 
+
+def test_write_sfz_groups_and_round_robin_opcodes(tmp_path):
+    import pytest
+    from spectral_foley import write_sfz
+
+    groups = [
+        {
+            "opcodes": {"sw_last": 24, "sw_label": "Lead", "ampeg_release": 0.13},
+            "regions": [
+                {
+                    "sample": f"lead_rr{rr}.wav",
+                    "pitch_keycenter": 40,
+                    "lokey": 39,
+                    "hikey": 41,
+                    "seq_length": 4,
+                    "seq_position": rr,
+                }
+                for rr in range(1, 5)
+            ],
+        },
+        {
+            "opcodes": {"sw_last": 25, "sw_label": "Palm Mute", "ampeg_release": 0.08},
+            "regions": [
+                {
+                    "sample": f"pm_rr{rr}.wav",
+                    "pitch_keycenter": 40,
+                    "lokey": 39,
+                    "hikey": 41,
+                    "seq_length": 4,
+                    "seq_position": rr,
+                }
+                for rr in range(1, 5)
+            ],
+        },
+    ]
+    sfz_path = tmp_path / "master.sfz"
+    out = write_sfz(
+        sfz_path,
+        groups=groups,
+        attack=0.001,
+        release=0.12,
+        amp_veltrack=42.0,
+        global_opcodes={"sw_lokey": 24, "sw_hikey": 25, "sw_default": 24},
+        header_comment="Keyswitched RR test",
+    )
+    assert out == sfz_path and sfz_path.is_file()
+    text = sfz_path.read_text(encoding="utf-8")
+    assert "// Keyswitched RR test" in text
+    assert "<global>" in text
+    assert "sw_lokey=24" in text and "sw_hikey=25" in text and "sw_default=24" in text
+    assert text.count("<group>") == 2
+    assert text.count("<region>") == 8
+    assert "sw_last=24" in text and "sw_last=25" in text
+    for rr in range(1, 5):
+        assert f"seq_position={rr}" in text
+        assert f"sample=lead_rr{rr}.wav" in text
+        assert f"sample=pm_rr{rr}.wav" in text
+    assert text.count("seq_length=4") == 8
+
+    with pytest.raises(ValueError):
+        write_sfz(tmp_path / "bad1.sfz")
+    with pytest.raises(ValueError):
+        write_sfz(tmp_path / "bad2.sfz", regions=[{"sample": "a.wav"}], groups=groups)
+    with pytest.raises(ValueError):
+        write_sfz(tmp_path / "bad3.sfz", groups=[])
+    with pytest.raises(ValueError):
+        write_sfz(tmp_path / "bad4.sfz", groups=[{"opcodes": {"sw_last": 24}, "regions": []}])
+
+

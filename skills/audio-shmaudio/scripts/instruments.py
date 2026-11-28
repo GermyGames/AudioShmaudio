@@ -715,16 +715,39 @@ def measure_pitch(
     return round(f_meas, 4), round(cents, 3)
 
 
+def _append_sfz_regions(
+    lines: List[str],
+    regions: Iterable[Mapping[str, Union[str, int, float]]],
+) -> None:
+    region_list = list(regions)
+    if not region_list:
+        raise ValueError("SFZ region collection must contain at least one region")
+    for reg in region_list:
+        if "sample" not in reg:
+            raise ValueError("Each SFZ region must specify a 'sample' path")
+        lines.append("<region>")
+        for key, val in reg.items():
+            lines.append(f"{key}={val}")
+        lines.append("")
+
+
 def write_sfz(
     path: Union[str, os.PathLike],
-    regions: Iterable[Mapping[str, Union[str, int, float]]],
+    regions: Optional[Iterable[Mapping[str, Union[str, int, float]]]] = None,
     *,
+    groups: Optional[Sequence[Mapping[str, object]]] = None,
     attack: float = 0.001,
     release: float = 0.14,
     amp_veltrack: float = 45.0,
+    global_opcodes: Optional[Mapping[str, Union[str, int, float]]] = None,
     header_comment: Optional[str] = None,
 ) -> Path:
-    """Write a DAW/sampler-ready SFZ instrument patch from region mappings."""
+    """Write a DAW/sampler-ready SFZ instrument patch from regions or keyed/round-robin groups."""
+    if regions is not None and groups is not None:
+        raise ValueError("Specify either regions or groups for write_sfz, not both")
+    if regions is None and groups is None:
+        raise ValueError("SFZ patch must provide regions or groups")
+
     out_path = Path(path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     lines: List[str] = []
@@ -736,18 +759,32 @@ def write_sfz(
         f"ampeg_attack={attack}",
         f"ampeg_release={release}",
         f"amp_veltrack={amp_veltrack}",
-        "",
     ])
-    region_list = list(regions)
-    if not region_list:
-        raise ValueError("SFZ patch must contain at least one region")
-    for reg in region_list:
-        if "sample" not in reg:
-            raise ValueError("Each SFZ region must specify a 'sample' path")
-        lines.append("<region>")
-        for key, val in reg.items():
+    if global_opcodes:
+        for key, val in global_opcodes.items():
             lines.append(f"{key}={val}")
-        lines.append("")
+    lines.append("")
+
+    if groups is not None:
+        group_list = list(groups)
+        if not group_list:
+            raise ValueError("SFZ groups list must contain at least one group")
+        for grp in group_list:
+            opcodes = grp.get("opcodes", {})
+            grp_regions = grp.get("regions")
+            if grp_regions is None:
+                raise ValueError("Each SFZ group must provide a 'regions' iterable")
+            lines.append("<group>")
+            if isinstance(opcodes, Mapping):
+                for key, val in opcodes.items():
+                    lines.append(f"{key}={val}")
+            elif opcodes:
+                raise ValueError("Group 'opcodes' must be a mapping")
+            lines.append("")
+            _append_sfz_regions(lines, grp_regions)  # type: ignore[arg-type]
+    else:
+        _append_sfz_regions(lines, regions)  # type: ignore[arg-type]
+
     out_path.write_text("\n".join(lines), encoding="utf-8")
     return out_path
 
